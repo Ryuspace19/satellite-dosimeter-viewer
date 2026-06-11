@@ -2,51 +2,61 @@
 
 Windows上で衛星線量計のCSV/TSVを読み込み、未処理ファイルだけを復号・解析してStreamlitで表示するアプリです。
 
-読み込み元は画面から次の2種類を選択できます。
-
-- ローカルフォルダ
-- Google Drive API
+- ローカルフォルダとGoogle Drive APIに対応
+- MOS1/MOS2 Vth、補間値、温度補正、移動平均、一次近似を表示
+- manifestで新規・更新・処理済みファイルを管理
+- Excel、summary CSV、解析済みCSV、エラーCSVを画面から保存
+- 失敗ファイルだけを画面から再試行
 
 rawファイルは読み取り専用として扱い、変更・上書きしません。
 
-## セットアップ
+## 対応環境
 
-PowerShellでプロジェクトフォルダへ移動して実行します。
+- Windows 10 / 11
+- Python 3.11または3.12
+- Git for Windows
 
-```powershell
-python -m venv .venv
-Set-ExecutionPolicy -Scope Process Bypass
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-```
+## 研究室PCへの初回導入
 
-## 起動
+PowerShellで次を実行します。
 
 ```powershell
-python -m streamlit run app\main.py
+git clone https://github.com/Ryuspace19/satellite-dosimeter-viewer.git
+cd satellite-dosimeter-viewer
 ```
 
-または `run_app.bat` をダブルクリックします。
+その後、`setup.bat` をダブルクリックします。
 
-ブラウザで次を開きます。
+セットアップが完了したら、`run_app.bat` をダブルクリックするとアプリが起動します。
 
 ```text
 http://localhost:8501
 ```
 
-## ローカルフォルダ
+`.venv` がない状態で `run_app.bat` を実行した場合も、自動的にセットアップが始まります。
 
-既定の読み込み先です。
+## 各PCを最新版へ更新
 
-```text
-C:\Users\ryuai\Desktop\線量計application\生データ
-```
+アプリを終了してから `update_app.bat` をダブルクリックします。
 
-別のフォルダを使う場合：
+更新処理は次を自動実行します。
 
-```powershell
-$env:DOSIMETER_RAW_DIR = "D:\dosimeter\raw"
-```
+1. ローカルのソース変更がないか確認
+2. GitHubの`main`ブランチからfast-forward更新
+3. Python依存関係を指定バージョンへ更新
+4. 全自動テストを実行
+5. 成功後、アプリを起動するか確認
+
+次のローカルデータは更新されません。
+
+- `config/credentials.json`
+- `data/google_drive_token.json`
+- manifest
+- Driveキャッシュ
+- 復号CSV
+- Excelレポート
+
+ソースコードに未コミットの変更がある場合は、安全のため更新を停止します。
 
 ## Google Drive APIの初期設定
 
@@ -56,82 +66,27 @@ $env:DOSIMETER_RAW_DIR = "D:\dosimeter\raw"
 15tsVcr813IlsPNRl7xntlCVw2IDEQwRX
 ```
 
-Google Cloud側で一度だけOAuthクライアントを作成します。
+1. Google Cloud ConsoleでGoogle Drive APIを有効化
+2. OAuth同意画面を設定
+3. 利用アカウントをテストユーザーへ追加
+4. OAuthクライアントIDを「デスクトップアプリ」で作成
+5. アプリ左側でGoogle Driveを選択
+6. ダウンロードしたOAuth JSONを画面から登録
+7. 読み込みボタンを押してGoogle認証
 
-1. Google Cloud Consoleを開く。
-2. 新規または既存プロジェクトを選択する。
-3. 「APIとサービス」からGoogle Drive APIを有効化する。
-4. OAuth同意画面を設定する。
-5. テスト運用の場合は、利用するGoogleアカウントをテストユーザーへ追加する。
-6. 「認証情報を作成」からOAuthクライアントIDを作成する。
-7. アプリケーションの種類は「デスクトップアプリ」を選択する。
-8. ダウンロードしたJSONを `config/credentials.json` として配置する。
+Drive権限は読み取り専用です。認証情報とtokenはGitHubへ登録されません。
 
-その後、アプリ画面で次を実行します。
+## データ保存先
 
-1. 左側の「読み込み元」で「Google Drive」を選択する。
-2. 「Driveから最新データを読み込み」を押す。
-3. 初回だけ開くGoogle認証画面で、共有Driveを閲覧できるアカウントを選択する。
-4. Driveの読み取り権限を許可する。
+ローカルとGoogle Driveの解析結果は分離されます。
 
-認証後のtokenは次へ保存されます。
+- ローカル：`data/decoded`、`data/graph_data`、`data/reports`
+- Google Drive：`data/google_drive/decoded`、`data/google_drive/graph_data`、`data/google_drive/reports`
 
-```text
-data/google_drive_token.json
-```
+処理済み判定にはファイルID、更新日時、サイズ、MD5を使用します。同名でも内容が変化した場合は更新ファイルとして再処理します。
 
-`credentials.json` とtokenは `.gitignore` 対象で、GitHubにはコミットされません。Drive権限は読み取り専用です。
-
-環境変数で設定を変更できます。
+## 手動テスト
 
 ```powershell
-$env:DOSIMETER_STORAGE = "google_drive"
-$env:GOOGLE_DRIVE_FOLDER_ID = "フォルダID"
-$env:GOOGLE_DRIVE_CREDENTIALS = "C:\path\credentials.json"
-$env:GOOGLE_DRIVE_TOKEN = "C:\path\google_drive_token.json"
-```
-
-## 処理内容
-
-- 日本語列名 `カウンタ`、`蓄積時刻`、`ログ` に対応
-- CSV/TSVと複数文字コードに対応
-- MOS1/MOS2のVth、補間Vth、温度補正、I-V全点を復号
-- BCC/CR異常を記録
-- `manifest.json` で処理済みファイルを管理
-- 温度・画像指標・Vthのグラフ表示
-- Vthの任意期間移動平均と一次近似を表示
-- 日/週/任意期間集計とExcelレポートを生成
-- 失敗ファイルだけを画面から再試行
-- Excel、summary CSV、解析済みCSV、復号エラーCSVを画面からダウンロード
-
-Google Drive使用時は、Drive上の一覧を取得した後、未処理CSV/TSVだけを `data/google_drive/drive_cache` へダウンロードして処理します。
-
-ローカルとGoogle Driveの解析結果は混在しません。
-
-- ローカル: `data/decoded`, `data/graph_data`, `data/reports`
-- Google Drive: `data/google_drive/decoded`, `data/google_drive/graph_data`, `data/google_drive/reports`
-
-処理済み判定には次のメタデータを使用します。
-
-- Google DriveファイルID
-- 更新日時
-- ファイルサイズ
-- MD5チェックサム
-
-同じファイル名でもMD5が変化した場合は更新ファイルとして再処理します。更新日時だけが変わりMD5が同じ場合は再処理しません。旧形式のmanifestは、初回確認時に再復号せずメタデータだけを補完します。
-
-## 出力
-
-- `data/decoded/*_decoded_vth_summary.csv`
-- `data/decoded/*_decoded_iv_all.csv`
-- `data/decoded/*_decode_errors.csv`
-- `data/graph_data/trend_master.csv`
-- `data/graph_data/trend_master_analyzed.csv`
-- `data/reports/mosfet_analysis_results_ja.xlsx`
-- `data/manifest.json`
-
-## テスト
-
-```powershell
-pytest -q
+.\.venv\Scripts\python.exe -m pytest -q
 ```

@@ -3,11 +3,10 @@ setlocal
 cd /d "%~dp0"
 
 if not exist ".venv\Scripts\python.exe" (
-  echo .venv was not found.
-  echo Run: python -m venv .venv
-  echo Then: .venv\Scripts\python.exe -m pip install -r requirements.txt
-  pause
-  exit /b 1
+  echo The application is not set up yet.
+  echo Starting setup...
+  call "%~dp0setup.bat"
+  if errorlevel 1 exit /b 1
 )
 
 ".venv\Scripts\python.exe" -m streamlit run app\main.py
