@@ -1,0 +1,15 @@
+storage:
+  type: local
+  raw_dir: "C:\\Users\\ryuai\\Desktop\\線量計application\\生データ"
+  google_drive_folder_id: "15tsVcr813IlsPNRl7xntlCVw2IDEQwRX"
+  credentials_path: "config/credentials.json"
+  token_path: "data/google_drive_token.json"
+
+decoder:
+  version: "v1.4-app"
+
+analysis:
+  bin_days: 7
+  sensitivity_mV_per_krad: 18.5
+
+# Never commit credentials.json, client_secret*.json, or token*.json.
