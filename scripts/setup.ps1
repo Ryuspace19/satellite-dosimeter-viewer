@@ -22,6 +22,8 @@ function Find-Python {
     $candidates = @(
         (Join-Path $env:LOCALAPPDATA "Programs\Python\Python312\python.exe"),
         (Join-Path $env:LOCALAPPDATA "Programs\Python\Python311\python.exe"),
+        (Join-Path $env:LOCALAPPDATA "Programs\Python\Python313\python.exe"),
+        "C:\Program Files\Python313\python.exe",
         "C:\Program Files\Python312\python.exe",
         "C:\Program Files\Python311\python.exe"
     )
@@ -43,8 +45,8 @@ Assert-LastExitCode "Python version check"
 $VersionParts = $VersionText.Trim().Split(".")
 $Major = [int]$VersionParts[0]
 $Minor = [int]$VersionParts[1]
-if ($Major -ne 3 -or $Minor -lt 11 -or $Minor -gt 12) {
-    throw "Python 3.11 or 3.12 is required. Detected: $VersionText"
+if ($Major -ne 3 -or $Minor -lt 11 -or $Minor -gt 13) {
+    throw "Python 3.11, 3.12, or 3.13 is required. Detected: $VersionText"
 }
 Write-Host "Python $VersionText found." -ForegroundColor Green
 
